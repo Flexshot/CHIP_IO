@@ -95,6 +95,8 @@ struct pwm_exp *lookup_exported_pwm(const char *key)
 
     while (pwm != NULL)
     {
+        if (DEBUG)
+            printf(" ** IN lookup_exported_pwm: pwm->key = %s\n",pwm->key);
         if (strcmp(pwm->key, key) == 0) {
             return pwm;
         }
@@ -119,10 +121,12 @@ int initialize_pwm(void)
             return -1;
         }
         len = snprintf(str_gpio, sizeof(str_gpio), "%d", gpio); BUF2SMALL(str_gpio);
-        ssize_t s = write(fd, str_gpio, len);  ASSRT(s == len);
+        ssize_t s = write(fd, str_gpio, len);
         if (DEBUG)
             printf(" ** IN initialize_pwm: s = %d, len = %d\n", s, len);
         close(fd);
+        ASSRT(s == len);
+
 
         pwm_initialized = 1;
         return 1;
@@ -317,7 +321,7 @@ int pwm_start(const char *key, float duty, float freq, int polarity)
     } else {
         if (DEBUG)
             printf(" ** ALREADY INITIALIZED, CALLING CLEANUP TO START FRESH **");
-        pwm_cleanup();   
+        pwm_cleanup();
     }
     if (DEBUG)
         printf(" ** IN pwm_start: pwm_initialized = %d\n", pwm_initialized);
@@ -338,7 +342,7 @@ int pwm_start(const char *key, float duty, float freq, int polarity)
         printf(" ** IN pwm_start: duty_path:     %s\n", duty_path);
         printf(" **IN pwm_start: polarity_path: %s\n", polarity_path);
     }
-    
+
     //add period and duty fd to pwm list
     if ((enable_fd = open(enable_path, O_WRONLY)) < 0)
         return -1;
@@ -424,8 +428,13 @@ int pwm_disable(const char *key)
         return -1;
     }
     len = snprintf(str_gpio, sizeof(str_gpio), "%d", gpio); BUF2SMALL(str_gpio);
-    ssize_t s = write(fd, str_gpio, len);  ASSRT(s == len);
+    ssize_t s = write(fd, str_gpio, len);
     close(fd);
+    if (DEBUG)
+        printf(" ** IN disable_pwm: s = %d, len = %d\n", s, len);
+    if (s != len) {
+        return -1;
+    }
 
     // remove from list
     pwm = exported_pwms;
@@ -438,7 +447,7 @@ int pwm_disable(const char *key)
             close(pwm->period_fd);
             close(pwm->duty_fd);
             close(pwm->polarity_fd);
-            
+
             if (prev_pwm == NULL)
             {
                 exported_pwms = pwm->next;
